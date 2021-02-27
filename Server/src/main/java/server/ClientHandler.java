@@ -2,10 +2,12 @@ package server;
 
 import commands.Command;
 
+import java.awt.*;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 
 public class ClientHandler {
     private Server server;
@@ -26,7 +28,7 @@ public class ClientHandler {
             new Thread(() -> {
                 try {
                     // установка сокет тайм аут
-//                    socket.setSoTimeout(5000);
+                    socket.setSoTimeout(12000);
 
                     // цикл аутентификации
                     while (true) {
@@ -54,6 +56,7 @@ public class ClientHandler {
                                     server.subscribe(this);
                                     System.out.println("client: " + socket.getRemoteSocketAddress() +
                                             " connected with nick: " + nickname);
+                                    socket.setSoTimeout(0);
                                     break;
                                 } else {
                                     sendMsg("Данная учетная запись уже используется");
@@ -100,13 +103,18 @@ public class ClientHandler {
                             server.broadcastMsg(this, str);
                         }
                     }
-                    //SocketTimeoutException
-                    //обрабатываем делаем все возможное попросить клиента вежливо отключиться
-                    //посылаем сообщение Command.END
-                    //(Сервак нас отключает )
-                    //не забываем отключить сокет таймаут после успешной аутентификации
+
+                } catch (SocketTimeoutException e) {
+                    System.out.println("Будьте добры отключиться ");
+                    try {
+                        out.writeUTF(Command.END);
+                    } catch (IOException ioException) {
+                        ioException.printStackTrace();
+                    }
+
                 } catch (RuntimeException e) {
                     System.out.println(e.getMessage());
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
