@@ -139,6 +139,10 @@ public class Controller implements Initializable {
                                     }
                                 });
                             }
+                            if (str.startsWith("/yr")){
+                                nickname= str.split(" ")[1];
+                                setTitle(nickname);
+                            }
 
                         } else {
                             textArea.appendText(str + "\n");
@@ -242,6 +246,3 @@ public class Controller implements Initializable {
         }
     }
 }
-//Подсказка по ДЗ  в клиенте хендлере есть момент когда мы запускаем цикл аунтефикации Thred есть блок трай после которого
-//идет обработка всяких ошибок и сокет закрывается в блоке finally в этом блоке трай желательно это сделать
-// socket.setSoTimeout(12000); это указанное время сокет ничего не делает  сокет поставил так в начале трай и запускаем

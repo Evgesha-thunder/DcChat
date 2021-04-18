@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Vector;
@@ -25,7 +26,20 @@ public class Server {
 
     public Server() {
         clients = new CopyOnWriteArrayList<>();
-        authService = new SimpleAuthServise();
+       // authService = new SimpleAuthServise();
+
+        try {
+            if (!DataBaseAuthservice.connect()){
+               throw new RuntimeException("Не получилость полключиться к БД");
+            }
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+        authService = new DbHeandler();
+
+
 
         try {
             server = new ServerSocket(PORT);
@@ -41,6 +55,7 @@ public class Server {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
+            DataBaseAuthservice.disconnect();
             try {
                 socket.close();
             } catch (IOException e) {
