@@ -99,6 +99,19 @@ public class ClientHandler {
                                 }
                                 server.privateMsg(this, token[1], token[2]);
                             }
+                            if (str.startsWith("/ch")) {
+                                String[] token = str.split("\\s", 2);
+                                if (token.length < 2) {
+                                    continue;
+                                }
+                                if (server.getAuthService().changeNick(this.nickname, token[1])) {
+                                    sendMsg("/yr" + token[1]);
+                                    sendMsg("Ваш ник изменен на " + token[1]);
+                                    this.nickname = token[1];
+                                    server.broadcastClientlist();
+
+                                }
+                            }
                         } else {
                             server.broadcastMsg(this, str);
                         }
