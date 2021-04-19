@@ -26,18 +26,17 @@ public class Server {
 
     public Server() {
         clients = new CopyOnWriteArrayList<>();
-       // authService = new SimpleAuthServise();
-
+        //authService = new SimpleAuthServise();
         try {
-            if (!DataBaseAuthservice.connect()){
-               throw new RuntimeException("Не получилость полключиться к БД");
+            if (!DataBaseConnection.connect()){
+                throw new RuntimeException("Не удалось подключиться к Базе");
             }
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
-        authService = new DbHeandler();
+        authService = new DataService();
 
 
 
@@ -55,7 +54,7 @@ public class Server {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            DataBaseAuthservice.disconnect();
+DataBaseConnection.disconnect();
             try {
                 socket.close();
             } catch (IOException e) {

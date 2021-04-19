@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 
-public class ClientHandler {
+public  class ClientHandler {
     private Server server;
     private Socket socket;
     private DataInputStream in;
@@ -27,112 +27,106 @@ public class ClientHandler {
 
             new Thread(() -> {
                 try {
-                    // установка сокет тайм аут
-                    socket.setSoTimeout(12000);
+                    // установска таймаута, максимальное время молчания,
+                    // после которого будет брошено исключение SocketTimeoutException
+                    socket.setSoTimeout(5000);
 
                     // цикл аутентификации
                     while (true) {
                         String str = in.readUTF();
 
-                        //если команда отключиться
-                        if (str.equals(Command.END)) {
-                            out.writeUTF(Command.END);
-                            throw new RuntimeException("Клиент захотел отключиться");
+                        if (str.equals("/end")) {
+                            out.writeUTF("/end");
+                            throw new RuntimeException("Клиент решил отключиться");
                         }
-
-                        //если команда аутентификация
-                        if (str.startsWith(Command.AUTH)) {
-                            String[] token = str.split("\\s", 3);
+                        // Аутентификация
+                        if (str.startsWith("/auth")) {
+                            String[] token = str.split("\\s+", 3);
                             if (token.length < 3) {
                                 continue;
                             }
-                            String newNick = server.getAuthService()
+                            String newNick = server
+                                    .getAuthService()
                                     .getNicknameByLoginAndPassword(token[1], token[2]);
-                            login = token[1];
                             if (newNick != null) {
+                                login = token[1];
                                 if (!server.isLoginAuthenticated(login)) {
                                     nickname = newNick;
-                                    sendMsg(Command.AUTH_OK + " " + nickname);
+                                    sendMsg("/auth_ok " + nickname);
                                     server.subscribe(this);
-                                    System.out.println("client: " + socket.getRemoteSocketAddress() +
-                                            " connected with nick: " + nickname);
+                                    System.out.println("Client authenticated. nick: " + nickname +
+                                            " Address: " + socket.getRemoteSocketAddress());
                                     socket.setSoTimeout(0);
                                     break;
                                 } else {
-                                    sendMsg("Данная учетная запись уже используется");
+                                    sendMsg("С этим логином уже авторизовались");
                                 }
                             } else {
                                 sendMsg("Неверный логин / пароль");
                             }
                         }
-
-                        //если команда регистрация
-                        if (str.startsWith(Command.REG)) {
-                            String[] token = str.split("\\s", 4);
+                        // Регистрация
+                        if (str.startsWith("/reg")) {
+                            String[] token = str.split("\\s+", 4);
                             if (token.length < 4) {
                                 continue;
                             }
-                            boolean regSuccess = server.getAuthService()
+                            boolean b = server.getAuthService()
                                     .registration(token[1], token[2], token[3]);
-                            if (regSuccess) {
-                                sendMsg(Command.REG_OK);
+                            if (b) {
+                                sendMsg("/reg_ok");
                             } else {
-                                sendMsg(Command.REG_NO);
+                                sendMsg("/reg_no");
                             }
                         }
-
                     }
+
                     //цикл работы
                     while (true) {
                         String str = in.readUTF();
 
                         if (str.startsWith("/")) {
-                            if (str.equals(Command.END)) {
-                                out.writeUTF(Command.END);
+                            if (str.equals("/end")) {
+                                out.writeUTF("/end");
                                 break;
                             }
-
-                            if (str.startsWith(Command.PRIVATE_MSG)) {
-                                String[] token = str.split("\\s", 3);
-                                if (token.length < 3) {
-                                    continue;
-                                }
+                            if (str.startsWith("/w")) {
+                                String[] token = str.split("\\s+", 3);
                                 server.privateMsg(this, token[1], token[2]);
                             }
-                            if (str.startsWith("/ch")) {
+
+                            if (str.startsWith("/ch")){
                                 String[] token = str.split("\\s", 2);
                                 if (token.length < 2) {
                                     continue;
                                 }
-                                if (server.getAuthService().changeNick(this.nickname, token[1])) {
-                                    sendMsg("/yr" + token[1]);
-                                    sendMsg("Ваш ник изменен на " + token[1]);
+                                if (token[1].contains(" ")){
+                                    System.out.println("Ник не может содержать пробелов");
+                                    continue;
+                                }
+                                if (server.getAuthService().changeNick(this.nickname,token[1])){
+                                    sendMsg("Ваш ник" + token[1]);
                                     this.nickname = token[1];
                                     server.broadcastClientlist();
-
+                                }else {
+                                    System.out.println("Ник уже существует");
                                 }
+
                             }
                         } else {
                             server.broadcastMsg(this, str);
                         }
                     }
-
+                    //обработать SocketTimeoutException
                 } catch (SocketTimeoutException e) {
-                    System.out.println("Будьте добры отключиться ");
-                    try {
-                        out.writeUTF(Command.END);
-                    } catch (IOException ioException) {
-                        ioException.printStackTrace();
-                    }
-
+                    sendMsg("/end");
                 } catch (RuntimeException e) {
                     System.out.println(e.getMessage());
-
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
                     server.unsubscribe(this);
-                    System.out.println("Client disconnected: " + nickname);
+                    System.out.println("client disconnect " + socket.getRemoteSocketAddress());
                     try {
                         socket.close();
                     } catch (IOException e) {
@@ -140,6 +134,7 @@ public class ClientHandler {
                     }
                 }
             }).start();
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -161,3 +156,4 @@ public class ClientHandler {
         return login;
     }
 }
+

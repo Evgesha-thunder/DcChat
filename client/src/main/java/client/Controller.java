@@ -139,10 +139,12 @@ public class Controller implements Initializable {
                                     }
                                 });
                             }
-                            if (str.startsWith("/yr")){
-                                nickname= str.split(" ")[1];
-                                setTitle(nickname);
+
+                            if (str.startsWith("/ch")){
+                              nickname = str.split(" ")[1];
+                              setTitle(nickname);
                             }
+
 
                         } else {
                             textArea.appendText(str + "\n");
