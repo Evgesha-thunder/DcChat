@@ -14,15 +14,15 @@
 
     <HBox fx:id="authPanel">
         <TextField fx:id="loginField" HBox.hgrow="ALWAYS" promptText="login"/>
-        <PasswordField fx:id="passwordField" HBox.hgrow="ALWAYS" promptText="password" onAction="#tryToAuth"/>
-        <Button text="auth" onAction="#tryToAuth" minWidth="100"/>
-        <Button text="reg" onAction="#showRegWindow" minWidth="100"/>
+        <PasswordField fx:id="passwordField" HBox.hgrow="ALWAYS" promptText="password"/>
+        <Button text="login" onAction="#tryToAuth" minWidth="100"/>
+        <Button text="reg" onAction="#tryToReg" minWidth="100"/>
     </HBox>
 
-    <HBox VBox.vgrow ="ALWAYS">
+    <HBox VBox.vgrow="ALWAYS">
         <TextArea fx:id="textArea" HBox.hgrow="ALWAYS" editable="false"/>
-        <ListView fx:id="clientList" visible="false" managed="false" minWidth="100"
-        onMouseReleased="#clientListMouseReleased"/>
+        <ListView fx:id="clientList" minWidth="150" visible="false" managed="false"
+                  onMouseReleased="#clickClientList"  />
     </HBox>
 
 
@@ -30,4 +30,5 @@
         <TextField fx:id="textField" HBox.hgrow="ALWAYS" promptText="input text" onAction="#sendMsg"/>
         <Button text="send" onAction="#sendMsg"/>
     </HBox>
+
 </VBox>

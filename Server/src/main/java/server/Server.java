@@ -5,41 +5,29 @@ import commands.Command;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Scanner;
-import java.util.Vector;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Server {
-    private final int PORT = 8189;
-    private ServerSocket server;
-    private Socket socket;
-    private DataInputStream in;
-    private DataOutputStream out;
+    private static ServerSocket server;
+    private static Socket socket;
 
+    private static final int PORT = 8090;
     private List<ClientHandler> clients;
     private AuthService authService;
 
     public Server() {
         clients = new CopyOnWriteArrayList<>();
-       // authService = new SimpleAuthServise();
-
-        try {
-            if (!DataBaseAuthservice.connect()){
-               throw new RuntimeException("Не получилость полключиться к БД");
-            }
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+    authService = new SimpleAuthService();
+        //==============//
+       /* if (!SQLHandler.connect()) {
+            throw new RuntimeException("Не удалось подключиться к БД");
         }
-        authService = new DbHeandler();
-
-
+        authService = new DBAuthServise();
+        //==============//*/
 
         try {
             server = new ServerSocket(PORT);
@@ -47,15 +35,15 @@ public class Server {
 
             while (true) {
                 socket = server.accept();
-                System.out.println("Client connected");
-                System.out.println("client: " + socket.getRemoteSocketAddress());
+                System.out.println(socket.getLocalSocketAddress());
+                System.out.println("Client connect: " + socket.getRemoteSocketAddress());
                 new ClientHandler(this, socket);
             }
 
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            DataBaseAuthservice.disconnect();
+            SQLHandler.disconnect();
             try {
                 socket.close();
             } catch (IOException e) {
@@ -69,53 +57,55 @@ public class Server {
         }
     }
 
-    public void broadcastMsg(ClientHandler sender, String msg){
-        String message = String.format("[ %s ]: %s", sender.getNickname(), msg);
+    public void broadcastMsg(ClientHandler sender, String msg) {
+        String message = String.format("%s : %s", sender.getNickname(), msg);
         for (ClientHandler c : clients) {
             c.sendMsg(message);
         }
     }
 
-    public void privateMsg(ClientHandler sender,String receiver, String msg){
-        String message = String.format("[ %s ] to [ %s ]: %s", sender.getNickname(), receiver, msg);
+    public void privateMsg(ClientHandler sender, String receiver, String msg) {
+        String message = String.format("[ %s ] to [ %s ] : %s", sender.getNickname(), receiver, msg);
+
         for (ClientHandler c : clients) {
-            if(c.getNickname().equals(receiver)){
+            if (c.getNickname().equals(receiver)) {
                 c.sendMsg(message);
-                if(!c.equals(sender)){
-                    sender.sendMsg(message);
+                if (sender.equals(c)) {
+                    return;
                 }
+                sender.sendMsg(message);
                 return;
             }
         }
-        sender.sendMsg("not found user: "+ receiver);
+        sender.sendMsg("not found user: " + receiver);
     }
 
-    public void subscribe(ClientHandler clientHandler){
+    public void subscribe(ClientHandler clientHandler) {
         clients.add(clientHandler);
-        broadcastClientlist();
+        broadcastClientList();
     }
 
-    public void unsubscribe(ClientHandler clientHandler){
+    public void unsubscribe(ClientHandler clientHandler) {
         clients.remove(clientHandler);
-        broadcastClientlist();
+        broadcastClientList();
     }
 
     public AuthService getAuthService() {
         return authService;
     }
 
-    public boolean isLoginAuthenticated(String login){
+    public boolean isLoginAuthenticated(String login) {
         for (ClientHandler c : clients) {
-            if(c.getLogin().equals(login)){
+            if (c.getLogin().equals(login)) {
                 return true;
             }
         }
+
         return false;
     }
 
-    public void broadcastClientlist(){
-        StringBuilder sb = new StringBuilder(Command.CLIENT_LIST);
-
+    public void broadcastClientList() {
+        StringBuilder sb = new StringBuilder("/clientlist");
         for (ClientHandler c : clients) {
             sb.append(" ").append(c.getNickname());
         }
@@ -124,6 +114,7 @@ public class Server {
 
         for (ClientHandler c : clients) {
             c.sendMsg(msg);
+
         }
     }
 }

@@ -12,12 +12,13 @@
         <URL value="@/css/style.css"/>
     </stylesheets>
 
+
     <TextField fx:id="loginField" promptText="login"/>
     <PasswordField fx:id="passwordField" promptText="password"/>
-    <TextField fx:id="nicknameField" promptText="nickname"/>
+    <TextField fx:id="nickField" promptText="nickname"/>
     <TextArea fx:id="textArea" VBox.vgrow="ALWAYS"/>
 
-    <Button text="reg" minWidth="100" onAction="#tryToReg"/>
+    <Button text="registration" minWidth="100" onAction="#tryToReg"/>
 
 
 </VBox>
