@@ -8,37 +8,35 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 
 public class RegController {
+    private Controller controller;
+
     @FXML
-    private TextField loginField;
+    public TextField loginField;
     @FXML
-    private PasswordField passwordField;
+    public PasswordField passwordField;
     @FXML
-    private TextField nicknameField;
+    public TextField nickField;
     @FXML
     private TextArea textArea;
 
-    private Controller controller;
-
-    public void setController(Controller controller) {
-        this.controller = controller;
-    }
-
-    public void setResultTryToReg(String command) {
-        if (command.equals(Command.REG_OK)) {
-            textArea.appendText("Регистрация прошла успешно\n");
-        }
-        if (command.equals(Command.REG_NO)) {
-            textArea.appendText("Логин или никнейм уже заняты\n");
-        }
-    }
-
+    @FXML
     public void tryToReg(ActionEvent actionEvent) {
         String login = loginField.getText().trim();
         String password = passwordField.getText().trim();
-        String nickname = nicknameField.getText().trim();
-if (login.length()*password.length()*nickname.length()==0){
-    return;
-}
-        controller.registration(login,password,nickname);
+        String nickname = nickField.getText().trim();
+
+        controller.registration(login, password, nickname);
+    }
+
+    public void showResult(String result) {
+        if (result.equals("/reg_ok")) {
+            textArea.appendText("Регистрация прошла успешно\n");
+        } else {
+            textArea.appendText("Регистрация не удалась. \nВозможно логин или никнейм заняты\n");
+        }
+    }
+
+    public void setController(Controller controller) {
+        this.controller = controller;
     }
 }

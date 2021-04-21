@@ -18,11 +18,10 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ResourceBundle;
 
 public class Controller implements Initializable {
@@ -44,29 +43,34 @@ public class Controller implements Initializable {
     private Socket socket;
     private DataInputStream in;
     private DataOutputStream out;
-    private final int PORT = 8189;
+
+
     private final String IP_ADDRESS = "localhost";
+    private final int PORT = 8090;
 
     private boolean authenticated;
     private String nickname;
+
     private Stage stage;
     private Stage regStage;
     private RegController regController;
+    private String login;
+
 
     public void setAuthenticated(boolean authenticated) {
         this.authenticated = authenticated;
-        msgPanel.setVisible(authenticated);
-        msgPanel.setManaged(authenticated);
         authPanel.setVisible(!authenticated);
         authPanel.setManaged(!authenticated);
+        msgPanel.setVisible(authenticated);
+        msgPanel.setManaged(authenticated);
         clientList.setVisible(authenticated);
         clientList.setManaged(authenticated);
 
         if (!authenticated) {
             nickname = "";
         }
-        textArea.clear();
         setTitle(nickname);
+        textArea.clear();
     }
 
     @Override
@@ -77,7 +81,7 @@ public class Controller implements Initializable {
                 System.out.println("bye");
                 if (socket != null && !socket.isClosed()) {
                     try {
-                        out.writeUTF(Command.END);
+                        out.writeUTF("/end");
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -95,43 +99,43 @@ public class Controller implements Initializable {
 
             new Thread(() -> {
                 try {
-                    // цикл аутентификации
+                    //цикл аутентификации
                     while (true) {
                         String str = in.readUTF();
 
                         if (str.startsWith("/")) {
-                            if (str.equals(Command.END)) {
-                                throw new RuntimeException("Сервак нас отключает");
-                            }
-                            if (str.startsWith(Command.AUTH_OK)) {
-                                String[] token = str.split("\\s");
-                                nickname = token[1];
-                                setAuthenticated(true);
+                            if (str.equals("/end")) {
                                 break;
                             }
+                            if (str.startsWith("/auth_ok")) {
+                                nickname = str.split("\\s+")[1];
+                                setAuthenticated(true);
+                                HistoryList.create(login);
 
-                            if(str.equals(Command.REG_OK)){
-                                regController.setResultTryToReg(Command.REG_OK);
+                                break;
+                            }
+                            if (str.startsWith("/reg_ok")) {
+                                regController.showResult("/reg_ok");
+                            }
+                            if (str.startsWith("/reg_no")) {
+                                regController.showResult("/reg_no");
                             }
 
-                            if(str.equals(Command.REG_NO)){
-                                regController.setResultTryToReg(Command.REG_NO);
-                            }
                         } else {
                             textArea.appendText(str + "\n");
                         }
                     }
                     //цикл работы
-                    while (true) {
+                    while (authenticated) {
                         String str = in.readUTF();
 
                         if (str.startsWith("/")) {
-                            if (str.equals(Command.END)) {
-                                System.out.println("Client disconnected");
+                            if (str.equals("/end")) {
                                 break;
                             }
-                            if (str.startsWith(Command.CLIENT_LIST)) {
-                                String[] token = str.split("\\s");
+                            // Обновление списка клиентов
+                            if (str.startsWith("/clientlist")) {
+                                String[] token = str.split("\\s+");
                                 Platform.runLater(() -> {
                                     clientList.getItems().clear();
                                     for (int i = 1; i < token.length; i++) {
@@ -140,21 +144,20 @@ public class Controller implements Initializable {
                                 });
                             }
 
-                            if (str.startsWith("/ch")){
-                              nickname = str.split(" ")[1];
-                              setTitle(nickname);
+                            if (str.startsWith("/yournickis ")) {
+                                nickname = str.split(" ")[1];
+                                setTitle(nickname);
                             }
-
 
                         } else {
                             textArea.appendText(str + "\n");
+                            HistoryList.write(str);
                         }
                     }
-                } catch (RuntimeException e) {
-                    System.out.println(e.getMessage());
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
+                    System.out.println("disconnect");
                     setAuthenticated(false);
                     try {
                         socket.close();
@@ -164,87 +167,100 @@ public class Controller implements Initializable {
                 }
             }).start();
 
-
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void sendMsg(ActionEvent actionEvent) {
+    @FXML
+    public void sendMsg() {
         try {
             out.writeUTF(textField.getText());
             textField.clear();
             textField.requestFocus();
+
+
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    @FXML
     public void tryToAuth(ActionEvent actionEvent) {
         if (socket == null || socket.isClosed()) {
             connect();
         }
+        String msg = String.format("/auth %s %s",
+                loginField.getText().trim(), passwordField.getText().trim());
+
+login = loginField.getText().trim();
 
         try {
-            out.writeUTF(String.format("%s %s %s", Command.AUTH, loginField.getText().trim(), passwordField.getText().trim()));
-
+            out.writeUTF(msg);
+            passwordField.clear();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            passwordField.clear();
         }
     }
 
     private void setTitle(String nickname) {
         Platform.runLater(() -> {
             if (nickname.equals("")) {
-                stage.setTitle("Best chat of World");
+                stage.setTitle("Open chat");
             } else {
-                stage.setTitle(String.format("Best chat of World - [ %s ]", nickname));
+                stage.setTitle(String.format("Open chat: [ %s ]", nickname));
             }
         });
     }
 
-    public void clientListMouseReleased(MouseEvent mouseEvent) {
-        System.out.println(clientList.getSelectionModel().getSelectedItem());
-        String msg = String.format("%s %s ", Command.PRIVATE_MSG, clientList.getSelectionModel().getSelectedItem());
-        textField.setText(msg);
+    public void clickClientList(MouseEvent mouseEvent) {
+        String receiver = clientList.getSelectionModel().getSelectedItem();
+        textField.setText("/w " + receiver + " ");
+
     }
 
-    public void showRegWindow(ActionEvent actionEvent) {
-        if (regStage == null) {
-            initRegWindow();
-        }
-        regStage.show();
-    }
 
-    private void initRegWindow() {
+    private void createRegWindow() {
         try {
             FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/reg.fxml"));
             Parent root = fxmlLoader.load();
+            regStage = new Stage();
+            regStage.setTitle("Open chat registration");
+            regStage.setScene(new Scene(root, 400, 320));
+
+            regStage.initModality(Modality.APPLICATION_MODAL);
+            regStage.initStyle(StageStyle.UTILITY);
 
             regController = fxmlLoader.getController();
             regController.setController(this);
 
-            regStage = new Stage();
-            regStage.setTitle("Best chat of World registration");
-            regStage.setScene(new Scene(root, 450, 350));
-            regStage.initStyle(StageStyle.UTILITY);
-            regStage.initModality(Modality.APPLICATION_MODAL);
-
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void registration(String login, String password, String nickname){
+    public void tryToReg(ActionEvent actionEvent) {
+        if (regStage == null) {
+            createRegWindow();
+        }
+        Platform.runLater(() -> {
+            regStage.show();
+        });
+    }
+
+    public void registration(String login, String password, String nickname) {
         if (socket == null || socket.isClosed()) {
             connect();
         }
+        String msg = String.format("/reg %s %s %s", login, password, nickname);
         try {
-            out.writeUTF(String.format("%s %s %s %s", Command.REG, login, password, nickname));
+            out.writeUTF(msg);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
+
+
+
 }
